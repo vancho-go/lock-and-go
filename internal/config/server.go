@@ -5,40 +5,60 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"time"
 )
 
 type server struct {
-	Address     string
-	DatabaseURI string
-	LogLevel    string
+	Address          string
+	DatabaseURI      string
+	LogLevel         string
+	JWTSecretKey     string
+	JWTTokenDuration time.Duration
 }
 
 type serverLoader interface {
-	load() (server, error)
+	load() (*server, error)
 }
 
 type flagLoader struct{}
 
-func (f *flagLoader) load() (server, error) {
+func (f *flagLoader) load() (*server, error) {
 	serverAddress := flag.String("a", "", "address:port to run server")
 	databaseURI := flag.String("d", "", "connection string for driver to establish connection to the conn")
 	logLevel := flag.String("l", "", "logger level")
+	jwtSecretKey := flag.String("js", "", "jwt secret key")
+	jwtTokenDuration := flag.String("jt", "", "jwt secret key valid time")
+
 	flag.Parse()
 
-	return server{
-		Address:     *serverAddress,
-		DatabaseURI: *databaseURI,
-		LogLevel:    *logLevel,
+	duration, err := time.ParseDuration(*jwtTokenDuration)
+	if err != nil {
+		return nil, fmt.Errorf("load: failed to decode jwt duration: %v", err)
+	}
+
+	return &server{
+		Address:          *serverAddress,
+		DatabaseURI:      *databaseURI,
+		LogLevel:         *logLevel,
+		JWTSecretKey:     *jwtSecretKey,
+		JWTTokenDuration: duration,
 	}, nil
 }
 
 type envLoader struct{}
 
-func (e *envLoader) load() (server, error) {
-	return server{
-		Address:     os.Getenv("SERVER_ADDRESS"),
-		DatabaseURI: os.Getenv("DATABASE_URI"),
-		LogLevel:    os.Getenv("LOG_LEVEL"),
+func (e *envLoader) load() (*server, error) {
+	duration, err := time.ParseDuration(os.Getenv("JWT_TOKEN_DURATION"))
+	if err != nil {
+		return nil, fmt.Errorf("load: failed to decode jwt duration: %v", err)
+	}
+
+	return &server{
+		Address:          os.Getenv("SERVER_ADDRESS"),
+		DatabaseURI:      os.Getenv("DATABASE_URI"),
+		LogLevel:         os.Getenv("LOG_LEVEL"),
+		JWTSecretKey:     os.Getenv("JWT_SECRET_KEY"),
+		JWTTokenDuration: duration,
 	}, nil
 }
 
@@ -55,12 +75,16 @@ func newConfigLoader(loaderType string) (serverLoader, error) {
 
 func isConfigFull(config any) error {
 	val := reflect.ValueOf(config)
-	for i := 0; i < val.Type().NumField(); i++ {
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem() // Разыменовываем указатель
+	}
+
+	for i := 0; i < val.NumField(); i++ {
 		field := val.Type().Field(i)
 		value := val.Field(i)
 
-		// Предполагаем, что все поля - строки. Проверяем только строки на пустоту.
-		if field.Type.Kind() == reflect.String && value.String() == "" {
+		// Проверяем, что значение не равно нулевому значению для своего типа
+		if reflect.DeepEqual(value.Interface(), reflect.Zero(field.Type).Interface()) {
 			return fmt.Errorf("isConfigFull: поле %s не должно быть пустым", field.Name)
 		}
 	}
@@ -83,5 +107,5 @@ func NewServer(loaderType string) (*server, error) {
 		return nil, fmt.Errorf("newServer: %w", err)
 	}
 
-	return &config, nil
+	return config, nil
 }

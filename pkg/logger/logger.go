@@ -16,7 +16,7 @@ func New(logLevel string) (*Logger, error) {
 	}
 	config.Level = zap.NewAtomicLevelAt(level)
 
-	config.Encoding = "json" // "console" для более читаемого вывода
+	config.Encoding = "console" // "console" для более читаемого вывода
 	config.EncoderConfig = zap.NewProductionEncoderConfig()
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 

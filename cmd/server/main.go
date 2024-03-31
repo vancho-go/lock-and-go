@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"github.com/go-chi/chi/v5"
 	"github.com/vancho-go/lock-and-go/internal/config"
+	"github.com/vancho-go/lock-and-go/internal/controller/http/handlers"
 	"github.com/vancho-go/lock-and-go/internal/repository/storage/psql"
+	"github.com/vancho-go/lock-and-go/internal/service/auth"
+	"github.com/vancho-go/lock-and-go/internal/service/jwt"
 	"github.com/vancho-go/lock-and-go/pkg/logger"
 	"log"
+	"net/http"
 )
 
 func main() {
@@ -31,9 +36,22 @@ func main() {
 	dbURL := "host=localhost port=5432 user=vancho password=vancho_pswd dbname=vancho_db sslmode=disable"
 	migrationsPath := "internal/repository/storage/psql/migrations"
 
-	database, err := psql.New(ctx, dbURL, migrationsPath, logZap)
+	storage, err := psql.New(ctx, dbURL, migrationsPath, logZap)
 	if err != nil {
-		log.Fatalf("error initialising database: %v", err)
+		log.Fatalf("error initialising storage: %v", err)
 	}
-	_ = database
+
+	userAuthRepo := psql.NewDefaultUserRepository(storage)
+	jwtManager := jwt.NewJWTManager(server.JWTSecretKey, server.JWTTokenDuration)
+	userAuthService := auth.NewUserAuthService(userAuthRepo, *jwtManager)
+	userController := handlers.NewUserController(userAuthService, logZap)
+
+	r := chi.NewRouter()
+	r.Post("/register", userController.Register)
+	r.Post("/login", userController.Authenticate)
+
+	err = http.ListenAndServe(server.Address, r)
+	if err != nil {
+		logZap.Fatalf("error starting server: %v", err)
+	}
 }

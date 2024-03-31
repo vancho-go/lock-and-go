@@ -1,10 +1,11 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Создание таблицы пользователей
 CREATE TABLE IF NOT EXISTS users (
-    user_id SERIAL PRIMARY KEY,
+    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(255) UNIQUE NOT NULL,
     password_hash CHAR(60) NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'utc'),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'Europe/Moscow'),
     last_login TIMESTAMP WITHOUT TIME ZONE
 );
 
@@ -25,11 +26,11 @@ ON CONFLICT (type_name) DO NOTHING;
 -- Создание основной таблицы данных пользователя
 CREATE TABLE IF NOT EXISTS user_data (
     data_id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     type_id INT NOT NULL REFERENCES data_types(type_id) ON DELETE RESTRICT,
     version INT NOT NULL DEFAULT 1,
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'utc'),
-    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'utc')
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'Europe/Moscow'),
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'Europe/Moscow')
 );
 
 -- Создание таблицы для хранения логинов и паролей
