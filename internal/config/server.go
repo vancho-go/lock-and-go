@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var jwtSecretKey string
+
 type server struct {
 	Address          string
 	DatabaseURI      string
@@ -106,6 +108,10 @@ func NewServer(loaderType string) (*server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("newServer: %w", err)
 	}
-
+	jwtSecretKey = config.JWTSecretKey
 	return config, nil
+}
+
+func GetJWTSecretKey() string {
+	return jwtSecretKey
 }

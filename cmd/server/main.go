@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/vancho-go/lock-and-go/internal/config"
 	"github.com/vancho-go/lock-and-go/internal/controller/http/handlers"
+	"github.com/vancho-go/lock-and-go/internal/controller/http/middlewares"
 	"github.com/vancho-go/lock-and-go/internal/repository/storage/psql"
 	"github.com/vancho-go/lock-and-go/internal/service/auth"
 	"github.com/vancho-go/lock-and-go/internal/service/jwt"
@@ -46,9 +47,16 @@ func main() {
 	userAuthService := auth.NewUserAuthService(userAuthRepo, *jwtManager)
 	userController := handlers.NewUserController(userAuthService, logZap)
 
+	middles := middlewares.NewMiddlewares(logZap)
+
 	r := chi.NewRouter()
 	r.Post("/register", userController.Register)
 	r.Post("/login", userController.Authenticate)
+
+	r.Group(func(r chi.Router) {
+		r.Use(middles.JWTMiddleware)
+		r.Get("/test", userController.Test)
+	})
 
 	err = http.ListenAndServe(server.Address, r)
 	if err != nil {

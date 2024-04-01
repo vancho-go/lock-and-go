@@ -3,8 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	api "github.com/vancho-go/lock-and-go/api/http"
 	"github.com/vancho-go/lock-and-go/internal/service/auth"
+	"github.com/vancho-go/lock-and-go/internal/service/jwt"
 	"github.com/vancho-go/lock-and-go/pkg/customerrors"
 	"github.com/vancho-go/lock-and-go/pkg/logger"
 	"net/http"
@@ -64,7 +66,7 @@ func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "token",
+		Name:     jwt.CookieKey,
 		Value:    token,
 		Expires:  time.Now().Add(24 * time.Hour), // Установите соответствующий срок действия
 		HttpOnly: true,                           // Важно для безопасности, предотвращает доступ JavaScript к куки
@@ -72,4 +74,14 @@ func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request
 		Secure:   true,                           // Куки должна отправляться только по HTTPS
 		SameSite: http.SameSiteStrictMode,        // Предотвращает отправку куки при кросс-доменных запросах
 	})
+}
+
+func (c *UserAuthController) Test(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt.GetUserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		c.log.Errorf("%v", ok)
+		return
+	}
+	fmt.Println(userID)
 }
