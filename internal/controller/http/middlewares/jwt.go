@@ -15,7 +15,7 @@ func (m *Middlewares) JWTMiddleware(next http.Handler) http.Handler {
 		}
 
 		if validationErr := jwt.IsTokenValid(token); err != nil {
-			m.log.Errorf("jwtMiddleware: %v", validationErr)
+			m.log.Errorf("validation error: %v", validationErr)
 			http.Error(res, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

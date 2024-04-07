@@ -9,6 +9,7 @@ import (
 	"github.com/vancho-go/lock-and-go/internal/repository/storage/psql"
 	"github.com/vancho-go/lock-and-go/internal/service/auth"
 	"github.com/vancho-go/lock-and-go/internal/service/jwt"
+	userdata "github.com/vancho-go/lock-and-go/internal/service/user-data"
 	"github.com/vancho-go/lock-and-go/pkg/logger"
 	"log"
 	"net/http"
@@ -42,20 +43,25 @@ func main() {
 		log.Fatalf("error initialising storage: %v", err)
 	}
 
-	userAuthRepo := psql.NewDefaultUserRepository(storage)
-	jwtManager := jwt.NewJWTManager(server.JWTSecretKey, server.JWTTokenDuration)
-	userAuthService := auth.NewUserAuthService(userAuthRepo, *jwtManager)
-	userController := handlers.NewUserController(userAuthService, logZap)
+	jwtManager := jwt.NewJWTManager(config.GetJWTSecretKey(), config.GetJWTTokenDuration())
+	authRepo := psql.NewDefaultUserRepository(storage)
+	authService := auth.NewUserAuthService(authRepo, *jwtManager)
+	authController := handlers.NewUserController(authService, logZap)
+
+	dataRepo := psql.NewDefaultUserDataRepository(storage)
+	dataService := userdata.NewDataService(dataRepo, dataRepo, dataRepo)
+	dataController := handlers.NewUserDataController(dataService, logZap)
 
 	middles := middlewares.NewMiddlewares(logZap)
 
 	r := chi.NewRouter()
-	r.Post("/register", userController.Register)
-	r.Post("/login", userController.Authenticate)
+	r.Post("/register", authController.Register)
+	r.Post("/login", authController.Authenticate)
 
 	r.Group(func(r chi.Router) {
 		r.Use(middles.JWTMiddleware)
-		r.Get("/test", userController.Test)
+		r.Post("/data/sync", dataController.SyncDataChanges)
+		r.Get("/data", dataController.GetData)
 	})
 
 	err = http.ListenAndServe(server.Address, r)

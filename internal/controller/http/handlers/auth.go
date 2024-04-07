@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	api "github.com/vancho-go/lock-and-go/api/http"
+	"github.com/vancho-go/lock-and-go/internal/config"
 	"github.com/vancho-go/lock-and-go/internal/service/auth"
 	"github.com/vancho-go/lock-and-go/internal/service/jwt"
 	"github.com/vancho-go/lock-and-go/pkg/customerrors"
@@ -38,7 +39,7 @@ func (c *UserAuthController) Register(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Username already exists", http.StatusConflict)
 			return
 		}
-		c.log.Errorf("register: failed to decode json: %v", err)
+		c.log.Errorf("failed to decode json: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -61,6 +62,7 @@ func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request
 			http.Error(w, "Wrong password", http.StatusUnauthorized)
 			return
 		}
+		c.log.Errorf("error authenticating user: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -68,11 +70,11 @@ func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request
 	http.SetCookie(w, &http.Cookie{
 		Name:     jwt.CookieKey,
 		Value:    token,
-		Expires:  time.Now().Add(24 * time.Hour), // Установите соответствующий срок действия
-		HttpOnly: true,                           // Важно для безопасности, предотвращает доступ JavaScript к куки
-		Path:     "/",                            // Куки будет доступна на всех маршрутах
-		Secure:   true,                           // Куки должна отправляться только по HTTPS
-		SameSite: http.SameSiteStrictMode,        // Предотвращает отправку куки при кросс-доменных запросах
+		Expires:  time.Now().Add(config.GetJWTTokenDuration()), // Установите соответствующий срок действия
+		HttpOnly: true,                                         // Важно для безопасности, предотвращает доступ JavaScript к куки
+		Path:     "/",                                          // Куки будет доступна на всех маршрутах
+		Secure:   true,                                         // Куки должна отправляться только по HTTPS
+		SameSite: http.SameSiteStrictMode,                      // Предотвращает отправку куки при кросс-доменных запросах
 	})
 }
 

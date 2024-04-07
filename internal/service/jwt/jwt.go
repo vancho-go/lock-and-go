@@ -29,7 +29,7 @@ func (m *Manager) GenerateToken(userID string) (string, error) {
 
 	tokenString, err := token.SignedString([]byte(m.secretKey))
 	if err != nil {
-		return "", fmt.Errorf("generateToken: failed to sign JWT token: %w", err)
+		return "", fmt.Errorf("failed to sign JWT token: %w", err)
 	}
 
 	return tokenString, nil
@@ -38,10 +38,10 @@ func (m *Manager) GenerateToken(userID string) (string, error) {
 func GetTokenFromCookie(r *http.Request) (string, error) {
 	token, err := r.Cookie(CookieKey)
 	if err != nil {
-		return "", fmt.Errorf("getUserIDFromCookie: cookie not found : %w", err)
+		return "", fmt.Errorf("cookie not found : %w", err)
 	}
 	if token == nil {
-		return "", fmt.Errorf("getUserIDFromCookie: cookie is empty : %w", err)
+		return "", fmt.Errorf("cookie is empty : %w", err)
 	}
 	return token.Value, nil
 }
@@ -49,7 +49,7 @@ func GetTokenFromCookie(r *http.Request) (string, error) {
 func IsTokenValid(token string) error {
 	verifiedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("isTokenValid: unexpected signing method: %v", t.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(config.GetJWTSecretKey()), nil
 	})
@@ -57,7 +57,7 @@ func IsTokenValid(token string) error {
 		return err
 	}
 	if !verifiedToken.Valid {
-		return fmt.Errorf("isTokenValid: token is not valid")
+		return fmt.Errorf("token is not valid")
 	}
 	return nil
 }
@@ -68,7 +68,7 @@ func GetUserIDFromToken(token string) (string, error) {
 		return []byte(config.GetJWTSecretKey()), nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("getUserID: error parsing token: %w", err)
+		return "", fmt.Errorf("error parsing token: %w", err)
 	}
 	return claims.UserID, nil
 }

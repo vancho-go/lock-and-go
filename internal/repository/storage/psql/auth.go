@@ -42,7 +42,7 @@ func (s *DefaultUserRepository) CreateUser(ctx context.Context, user *model.User
 				}
 			}
 		}
-		return fmt.Errorf("createUser: %w", err)
+		return err
 	}
 	return nil
 }
@@ -58,9 +58,9 @@ func (s *DefaultUserRepository) GetUserByUsername(ctx context.Context, username 
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("getUserByUsername: user not found: %w", err)
+			return nil, fmt.Errorf("user not found: %w", err)
 		}
-		return nil, fmt.Errorf("getUserByUsername: error querying user by username: %w", err)
+		return nil, fmt.Errorf("error querying user by username: %w", err)
 	}
 	return &user, nil
 }

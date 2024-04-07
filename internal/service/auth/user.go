@@ -22,7 +22,7 @@ func NewUserAuthService(repo psql.UserRepository, jwt jwt.Manager) *UserService 
 func (s *UserService) hashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("hashPassword: generating hash from password error: %w", err)
+		return "", fmt.Errorf("generating hash from password error: %w", err)
 	}
 	return string(hashedPassword), nil
 }
@@ -35,7 +35,7 @@ func (s *UserService) isPasswordEqualsToHashedPassword(password, hashedPassword 
 func (s *UserService) Register(ctx context.Context, username, password string) error {
 	hashedPassword, err := s.hashPassword(password)
 	if err != nil {
-		return fmt.Errorf("register: %w", err)
+		return err
 	}
 	user := &model.UserHashed{Username: username, PasswordHash: hashedPassword}
 	return s.repo.CreateUser(ctx, user)
@@ -44,7 +44,7 @@ func (s *UserService) Register(ctx context.Context, username, password string) e
 func (s *UserService) Authenticate(ctx context.Context, username, password string) (string, error) {
 	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
-		return "", fmt.Errorf("authenticate: %w", err)
+		return "", err
 	}
 
 	if !s.isPasswordEqualsToHashedPassword(password, user.PasswordHash) {

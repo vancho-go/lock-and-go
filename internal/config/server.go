@@ -8,59 +8,57 @@ import (
 	"time"
 )
 
-var jwtSecretKey string
+var (
+	jwtSecretKey     string
+	jwtTokenDuration time.Duration
+)
 
-type server struct {
-	Address          string
-	DatabaseURI      string
-	LogLevel         string
-	JWTSecretKey     string
-	JWTTokenDuration time.Duration
+type Server struct {
+	Address     string
+	DatabaseURI string
+	LogLevel    string
 }
 
 type serverLoader interface {
-	load() (*server, error)
+	load() (*Server, error)
 }
 
 type flagLoader struct{}
 
-func (f *flagLoader) load() (*server, error) {
-	serverAddress := flag.String("a", "", "address:port to run server")
+func (f *flagLoader) load() (*Server, error) {
+	serverAddress := flag.String("a", "", "address:port to run Server")
 	databaseURI := flag.String("d", "", "connection string for driver to establish connection to the conn")
 	logLevel := flag.String("l", "", "logger level")
-	jwtSecretKey := flag.String("js", "", "jwt secret key")
-	jwtTokenDuration := flag.String("jt", "", "jwt secret key valid time")
+	jwtSecretKey = *flag.String("js", "", "jwt secret key")
+	jwtTokenDurationStr := flag.String("jt", "", "jwt secret key valid time")
 
 	flag.Parse()
 
-	duration, err := time.ParseDuration(*jwtTokenDuration)
+	jwtTokenDurationParsed, err := time.ParseDuration(*jwtTokenDurationStr)
 	if err != nil {
 		return nil, fmt.Errorf("load: failed to decode jwt duration: %v", err)
 	}
-
-	return &server{
-		Address:          *serverAddress,
-		DatabaseURI:      *databaseURI,
-		LogLevel:         *logLevel,
-		JWTSecretKey:     *jwtSecretKey,
-		JWTTokenDuration: duration,
+	jwtTokenDuration = jwtTokenDurationParsed
+	return &Server{
+		Address:     *serverAddress,
+		DatabaseURI: *databaseURI,
+		LogLevel:    *logLevel,
 	}, nil
 }
 
 type envLoader struct{}
 
-func (e *envLoader) load() (*server, error) {
-	duration, err := time.ParseDuration(os.Getenv("JWT_TOKEN_DURATION"))
+func (e *envLoader) load() (*Server, error) {
+	jwtSecretKey = os.Getenv("JWT_SECRET_KEY")
+	jwtTokenDurationParsed, err := time.ParseDuration(os.Getenv("JWT_TOKEN_DURATION"))
 	if err != nil {
-		return nil, fmt.Errorf("load: failed to decode jwt duration: %v", err)
+		return nil, fmt.Errorf("token parsing error: %w", err)
 	}
-
-	return &server{
-		Address:          os.Getenv("SERVER_ADDRESS"),
-		DatabaseURI:      os.Getenv("DATABASE_URI"),
-		LogLevel:         os.Getenv("LOG_LEVEL"),
-		JWTSecretKey:     os.Getenv("JWT_SECRET_KEY"),
-		JWTTokenDuration: duration,
+	jwtTokenDuration = jwtTokenDurationParsed
+	return &Server{
+		Address:     os.Getenv("SERVER_ADDRESS"),
+		DatabaseURI: os.Getenv("DATABASE_URI"),
+		LogLevel:    os.Getenv("LOG_LEVEL"),
 	}, nil
 }
 
@@ -71,7 +69,7 @@ func newConfigLoader(loaderType string) (serverLoader, error) {
 	case "flag":
 		return &flagLoader{}, nil
 	default:
-		return nil, fmt.Errorf("newConfigLoader: Unsupported config loader type: %s", loaderType)
+		return nil, fmt.Errorf("unsupported config loader type: %s", loaderType)
 	}
 }
 
@@ -87,31 +85,34 @@ func isConfigFull(config any) error {
 
 		// Проверяем, что значение не равно нулевому значению для своего типа
 		if reflect.DeepEqual(value.Interface(), reflect.Zero(field.Type).Interface()) {
-			return fmt.Errorf("isConfigFull: поле %s не должно быть пустым", field.Name)
+			return fmt.Errorf("%s field should not be empty", field.Name)
 		}
 	}
 	return nil
 }
 
-func NewServer(loaderType string) (*server, error) {
+func NewServer(loaderType string) (*Server, error) {
 	loader, err := newConfigLoader(loaderType)
 	if err != nil {
-		return nil, fmt.Errorf("newServer: %w", err)
+		return nil, err
 	}
 
 	config, err := loader.load()
 	if err != nil {
-		return nil, fmt.Errorf("newServer: %w", err)
+		return nil, err
 	}
 
 	err = isConfigFull(config)
 	if err != nil {
-		return nil, fmt.Errorf("newServer: %w", err)
+		return nil, err
 	}
-	jwtSecretKey = config.JWTSecretKey
 	return config, nil
 }
 
 func GetJWTSecretKey() string {
 	return jwtSecretKey
+}
+
+func GetJWTTokenDuration() time.Duration {
+	return jwtTokenDuration
 }
