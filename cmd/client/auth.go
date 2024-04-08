@@ -22,7 +22,7 @@ func Register(username, password string) {
 		return
 	}
 
-	resp, err := http.Post("http://localhost:8080/register", "application/json", bytes.NewBuffer(dataBytes))
+	resp, err := http.Post((ServerHost + "/register"), "application/json", bytes.NewBuffer(dataBytes))
 	if err != nil {
 		fmt.Println("Error sending request:", err)
 		return
@@ -49,7 +49,7 @@ func Login(username, password string) {
 		return
 	}
 
-	resp, err := http.Post("http://localhost:8080/login", "application/json", bytes.NewBuffer(dataBytes))
+	resp, err := http.Post(ServerHost+"/login", "application/json", bytes.NewBuffer(dataBytes))
 	if err != nil {
 		fmt.Println("Error sending request:", err)
 		return

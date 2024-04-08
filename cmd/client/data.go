@@ -410,7 +410,7 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 			return fmt.Errorf("error marshalling data: %v", err)
 		}
 
-		req, err := http.NewRequest("POST", "http://localhost:8080/data/sync", bytes.NewBuffer(dataBytes))
+		req, err := http.NewRequest("POST", ServerHost+"/data/sync", bytes.NewBuffer(dataBytes))
 		if err != nil {
 			return fmt.Errorf("error creating request: %v", err)
 		}
@@ -429,7 +429,7 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 	}
 
 	// Получение актуальных данных с сервера
-	req, err := http.NewRequest("GET", "http://localhost:8080/data", nil)
+	req, err := http.NewRequest("GET", ServerHost+"/data", nil)
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}

@@ -135,33 +135,3 @@ func GenerateKey(keyPath, keyPass string) {
 	}
 	fmt.Println("Encryption key generated and saved successfully.")
 }
-
-//func main() {
-//	password := "секретный пароль"
-//	if err := generateAndSaveKey(password); err != nil {
-//		fmt.Println("Ошибка при генерации ключа:", err)
-//		return
-//	}
-//
-//	keyPath := "encryption.key"
-//	key, err := readAndDecryptKey(password, keyPath)
-//	if err != nil {
-//		fmt.Println("Ошибка при считывании ключа:", err)
-//		return
-//	}
-//
-//	text := "Тестовое сообщение для шифрования"
-//	encrypted, err := encrypt([]byte(text), key)
-//	if err != nil {
-//		fmt.Println("Ошибка при шифровании:", err)
-//		return
-//	}
-//	fmt.Println("Зашифрованный текст:", hex.EncodeToString(encrypted))
-//
-//	decrypted, err := decrypt(encrypted, key)
-//	if err != nil {
-//		fmt.Println("Ошибка при расшифровке:", err)
-//		return
-//	}
-//	fmt.Println("Расшифрованный текст:", string(decrypted))
-//}

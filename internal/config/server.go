@@ -23,9 +23,9 @@ type serverLoader interface {
 	load() (*Server, error)
 }
 
-type flagLoader struct{}
+type flagServerLoader struct{}
 
-func (f *flagLoader) load() (*Server, error) {
+func (f *flagServerLoader) load() (*Server, error) {
 	serverAddress := flag.String("a", "", "address:port to run Server")
 	databaseURI := flag.String("d", "", "connection string for driver to establish connection to the conn")
 	logLevel := flag.String("l", "", "logger level")
@@ -46,9 +46,9 @@ func (f *flagLoader) load() (*Server, error) {
 	}, nil
 }
 
-type envLoader struct{}
+type envServerLoader struct{}
 
-func (e *envLoader) load() (*Server, error) {
+func (e *envServerLoader) load() (*Server, error) {
 	jwtSecretKey = os.Getenv("JWT_SECRET_KEY")
 	jwtTokenDurationParsed, err := time.ParseDuration(os.Getenv("JWT_TOKEN_DURATION"))
 	if err != nil {
@@ -62,12 +62,12 @@ func (e *envLoader) load() (*Server, error) {
 	}, nil
 }
 
-func newConfigLoader(loaderType string) (serverLoader, error) {
+func newServerConfigLoader(loaderType string) (serverLoader, error) {
 	switch loaderType {
 	case "env":
-		return &envLoader{}, nil
+		return &envServerLoader{}, nil
 	case "flag":
-		return &flagLoader{}, nil
+		return &flagServerLoader{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported config loader type: %s", loaderType)
 	}
@@ -92,7 +92,7 @@ func isConfigFull(config any) error {
 }
 
 func NewServer(loaderType string) (*Server, error) {
-	loader, err := newConfigLoader(loaderType)
+	loader, err := newServerConfigLoader(loaderType)
 	if err != nil {
 		return nil, err
 	}

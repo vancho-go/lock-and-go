@@ -3,11 +3,23 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/vancho-go/lock-and-go/internal/config"
+	"log"
 	"os"
 	"strings"
 )
 
+var ServerHost string
+
 func main() {
+	loaderType := "flag"
+	client, err := config.NewClient(loaderType)
+	if err != nil {
+		log.Fatalf("error building client configuration: %v", err)
+	}
+
+	ServerHost = *client.ServerAddress
+
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Привет от LockAndGo CLI client. Вбей 'help' чтобы увидеть список доступных команд")
 
