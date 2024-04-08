@@ -17,3 +17,7 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+
+# Various
+data.json
+enc.key

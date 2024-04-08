@@ -33,6 +33,10 @@ func (s *DataService) SyncDataChanges(ctx context.Context, datas []model.UserDat
 
 	// Разделяем данные на те, что нужно обновить/добавить и на те, что нужно удалить
 	var toUpsert, toDelete []model.UserData
+	if !s.IsValid(datas) {
+		return errors.New("one or more fields in UserData are empty")
+	}
+
 	for _, data := range datas {
 		data.UserID = userID
 		if data.Status == "deleted" {
@@ -63,4 +67,13 @@ func (s *DataService) GetData(ctx context.Context) ([]model.UserData, error) {
 		return nil, errors.New("user ID not found in context")
 	}
 	return s.reader.Read(ctx, userID)
+}
+
+func (s *DataService) IsValid(datas []model.UserData) bool {
+	for _, data := range datas {
+		if data.DataID == "" || data.Data == "" || data.DataID == "" || data.Status == "" {
+			return false
+		}
+	}
+	return true
 }

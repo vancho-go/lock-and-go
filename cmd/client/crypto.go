@@ -4,14 +4,16 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/argon2"
 	"os"
 )
 
+var key []byte
+
 // Функция для генерации ключа шифрования данных и его шифрования с использованием ключа, полученного из пароля.
-func generateAndSaveKey(password string) error {
+func generateAndSaveKey(password, path string) error {
 	// Генерация ключа шифрования данных
 	dataKey := make([]byte, 32) // AES-256 ключ
 	if _, err := rand.Read(dataKey); err != nil {
@@ -42,12 +44,12 @@ func generateAndSaveKey(password string) error {
 
 	// Сохранение зашифрованного ключа и соли в файл
 	keyFileContent := append(salt, encryptedDataKey...)
-	return os.WriteFile("encryption.key", keyFileContent, 0600)
+	return os.WriteFile(path, keyFileContent, 0600)
 }
 
 // Функция для считывания и расшифровки ключа шифрования данных из файла с использованием пароля.
-func readAndDecryptKey(password string) ([]byte, error) {
-	keyFileContent, err := os.ReadFile("encryption.key")
+func readAndDecryptKey(password, keyPath string) ([]byte, error) {
+	keyFileContent, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -108,36 +110,58 @@ func decrypt(encrypted []byte, key []byte) ([]byte, error) {
 	}
 
 	nonceSize := aesGCM.NonceSize()
+	if len(encrypted) < nonceSize {
+		return []byte{}, errors.New("error decrypting data file, it may be empty")
+	}
 	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
 
 	return aesGCM.Open(nil, nonce, ciphertext, nil)
 }
 
-func main() {
-	password := "секретный пароль"
-	if err := generateAndSaveKey(password); err != nil {
-		fmt.Println("Ошибка при генерации ключа:", err)
-		return
-	}
-
-	key, err := readAndDecryptKey(password)
+func ImportKey(keyPath, keyPass string) {
+	decryptedKey, err := readAndDecryptKey(keyPass, keyPath)
 	if err != nil {
-		fmt.Println("Ошибка при считывании ключа:", err)
+		fmt.Println("Failed to decrypt your encryption key:", err)
 		return
 	}
-
-	text := "Тестовое сообщение для шифрования"
-	encrypted, err := encrypt([]byte(text), key)
-	if err != nil {
-		fmt.Println("Ошибка при шифровании:", err)
-		return
-	}
-	fmt.Println("Зашифрованный текст:", hex.EncodeToString(encrypted))
-
-	decrypted, err := decrypt(encrypted, key)
-	if err != nil {
-		fmt.Println("Ошибка при расшифровке:", err)
-		return
-	}
-	fmt.Println("Расшифрованный текст:", string(decrypted))
+	key = decryptedKey
+	fmt.Println("Encryption key imported successfully.")
 }
+
+func GenerateKey(keyPath, keyPass string) {
+	if err := generateAndSaveKey(keyPass, keyPath); err != nil {
+		fmt.Println("Failed to generate and save encryption key:", err)
+		return
+	}
+	fmt.Println("Encryption key generated and saved successfully.")
+}
+
+//func main() {
+//	password := "секретный пароль"
+//	if err := generateAndSaveKey(password); err != nil {
+//		fmt.Println("Ошибка при генерации ключа:", err)
+//		return
+//	}
+//
+//	keyPath := "encryption.key"
+//	key, err := readAndDecryptKey(password, keyPath)
+//	if err != nil {
+//		fmt.Println("Ошибка при считывании ключа:", err)
+//		return
+//	}
+//
+//	text := "Тестовое сообщение для шифрования"
+//	encrypted, err := encrypt([]byte(text), key)
+//	if err != nil {
+//		fmt.Println("Ошибка при шифровании:", err)
+//		return
+//	}
+//	fmt.Println("Зашифрованный текст:", hex.EncodeToString(encrypted))
+//
+//	decrypted, err := decrypt(encrypted, key)
+//	if err != nil {
+//		fmt.Println("Ошибка при расшифровке:", err)
+//		return
+//	}
+//	fmt.Println("Расшифрованный текст:", string(decrypted))
+//}

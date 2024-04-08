@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS user_data (
      data_id UUID PRIMARY KEY,
      user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
      data TEXT NOT NULL,
+     data_type TEXT NOT NULL,
      created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
      modified_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
