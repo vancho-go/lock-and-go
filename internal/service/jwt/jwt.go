@@ -10,15 +10,18 @@ import (
 	"time"
 )
 
+// Manager тип, необходимый для работы с JWT секретами.
 type Manager struct {
 	secretKey     string
 	tokenDuration time.Duration
 }
 
+// NewJWTManager конструктор Manager.
 func NewJWTManager(secretKey string, tokenDuration time.Duration) *Manager {
 	return &Manager{secretKey: secretKey, tokenDuration: tokenDuration}
 }
 
+// GenerateToken генерирует токен JWT.
 func (m *Manager) GenerateToken(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, model.JWTClaims{
 		UserID: userID,
@@ -35,6 +38,7 @@ func (m *Manager) GenerateToken(userID string) (string, error) {
 	return tokenString, nil
 }
 
+// GetTokenFromCookie извлекает токен из куки запроса.
 func GetTokenFromCookie(r *http.Request) (string, error) {
 	token, err := r.Cookie(CookieKey)
 	if err != nil {
@@ -46,6 +50,7 @@ func GetTokenFromCookie(r *http.Request) (string, error) {
 	return token.Value, nil
 }
 
+// IsTokenValid проверяет токен на валидность.
 func IsTokenValid(token string) error {
 	verifiedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -62,6 +67,7 @@ func IsTokenValid(token string) error {
 	return nil
 }
 
+// GetUserIDFromToken извлекает UserID из токена.
 func GetUserIDFromToken(token string) (string, error) {
 	var claims model.JWTClaims
 	_, err := jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (interface{}, error) {
@@ -73,6 +79,7 @@ func GetUserIDFromToken(token string) (string, error) {
 	return claims.UserID, nil
 }
 
+// GetUserIDFromContext извлекает UserID из контекста.
 func GetUserIDFromContext(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(ContextKey).(string)
 	return userID, ok

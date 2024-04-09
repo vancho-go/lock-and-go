@@ -8,12 +8,14 @@ import (
 	"github.com/vancho-go/lock-and-go/internal/service/jwt"
 )
 
+// DataService сервис для работы с пользовательскими данными.
 type DataService struct {
 	upserter psql.UserDataUpserter
 	deleter  psql.UserDataDeleter
 	reader   psql.UserDataReader
 }
 
+// NewDataService конструктор DataService.
 func NewDataService(
 	upserter psql.UserDataUpserter,
 	reader psql.UserDataReader,
@@ -25,6 +27,7 @@ func NewDataService(
 	}
 }
 
+// SyncDataChanges синхронизирует данные пользователя (клиента) с сервером.
 func (s *DataService) SyncDataChanges(ctx context.Context, datas []model.UserData) error {
 	userID, ok := jwt.GetUserIDFromContext(ctx)
 	if !ok {
@@ -33,9 +36,6 @@ func (s *DataService) SyncDataChanges(ctx context.Context, datas []model.UserDat
 
 	// Разделяем данные на те, что нужно обновить/добавить и на те, что нужно удалить
 	var toUpsert, toDelete []model.UserData
-	//if !s.IsValid(datas) {
-	//	return errors.New("one or more fields in UserData are empty")
-	//}
 
 	for _, data := range datas {
 		data.UserID = userID
@@ -61,6 +61,7 @@ func (s *DataService) SyncDataChanges(ctx context.Context, datas []model.UserDat
 	return nil
 }
 
+// GetData запрашивает данные пользователя у сервера.
 func (s *DataService) GetData(ctx context.Context) ([]model.UserData, error) {
 	userID, ok := jwt.GetUserIDFromContext(ctx)
 	if !ok {
@@ -68,12 +69,3 @@ func (s *DataService) GetData(ctx context.Context) ([]model.UserData, error) {
 	}
 	return s.reader.Read(ctx, userID)
 }
-
-//func (s *DataService) IsValid(datas []model.UserData) bool {
-//	for _, data := range datas {
-//		if data.DataID == "" || data.Data == "" || data.DataID == "" || data.Status == "" {
-//			return false
-//		}
-//	}
-//	return true
-//}

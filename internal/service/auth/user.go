@@ -10,16 +10,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserService struct {
+// UserAuthService сервис для работы с авторизацией пользователей.
+type UserAuthService struct {
 	repo psql.UserRepository
 	jwt  jwt.Manager
 }
 
-func NewUserAuthService(repo psql.UserRepository, jwt jwt.Manager) *UserService {
-	return &UserService{repo: repo, jwt: jwt}
+// NewUserAuthService конструктор UserAuthService.
+func NewUserAuthService(repo psql.UserRepository, jwt jwt.Manager) *UserAuthService {
+	return &UserAuthService{repo: repo, jwt: jwt}
 }
 
-func (s *UserService) hashPassword(password string) (string, error) {
+// hashPassword генерирует хэш пароля.
+func (s *UserAuthService) hashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", fmt.Errorf("generating hash from password error: %w", err)
@@ -27,12 +30,14 @@ func (s *UserService) hashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
-func (s *UserService) isPasswordEqualsToHashedPassword(password, hashedPassword string) bool {
+// isPasswordEqualsToHashedPassword сравнивает пароль с его хешем.
+func (s *UserAuthService) isPasswordEqualsToHashedPassword(password, hashedPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
 }
 
-func (s *UserService) Register(ctx context.Context, username, password string) error {
+// Register метод, обрабатывающий запрос на регистрацию пользователя.
+func (s *UserAuthService) Register(ctx context.Context, username, password string) error {
 	hashedPassword, err := s.hashPassword(password)
 	if err != nil {
 		return err
@@ -41,7 +46,8 @@ func (s *UserService) Register(ctx context.Context, username, password string) e
 	return s.repo.CreateUser(ctx, user)
 }
 
-func (s *UserService) Authenticate(ctx context.Context, username, password string) (string, error) {
+// Authenticate метод, обрабатывающий запрос на аутентификацию пользователя.
+func (s *UserAuthService) Authenticate(ctx context.Context, username, password string) (string, error) {
 	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
 		return "", err

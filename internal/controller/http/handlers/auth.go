@@ -15,12 +15,12 @@ import (
 
 // UserAuthController контроллер для пользовательской аутентификации.
 type UserAuthController struct {
-	userService *auth.UserService
+	userService *auth.UserAuthService
 	log         *logger.Logger
 }
 
 // NewUserController конструктор для UserAuthController.
-func NewUserController(userService *auth.UserService, log *logger.Logger) *UserAuthController {
+func NewUserController(userService *auth.UserAuthService, log *logger.Logger) *UserAuthController {
 	return &UserAuthController{
 		userService: userService,
 		log:         log}
