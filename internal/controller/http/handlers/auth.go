@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	api "github.com/vancho-go/lock-and-go/api/http"
 	"github.com/vancho-go/lock-and-go/internal/config"
 	"github.com/vancho-go/lock-and-go/internal/service/auth"
@@ -14,45 +13,42 @@ import (
 	"time"
 )
 
+// UserAuthController контроллер для пользовательской аутентификации.
 type UserAuthController struct {
 	userService *auth.UserService
 	log         *logger.Logger
 }
 
+// NewUserController конструктор для UserAuthController.
 func NewUserController(userService *auth.UserService, log *logger.Logger) *UserAuthController {
 	return &UserAuthController{
 		userService: userService,
 		log:         log}
 }
 
+// Register обработчик регистрации нового пользователя.
 func (c *UserAuthController) Register(w http.ResponseWriter, r *http.Request) {
 	var req api.RegisterUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-	}
-	if req.Username == "" || req.Password == "" {
-		http.Error(w, "Missing required fields: username, password", http.StatusBadRequest)
+	if err := decodeJSONRequestBody(w, r, &req); err != nil {
 		return
 	}
+
 	if err := c.userService.Register(r.Context(), req.Username, req.Password); err != nil {
-		if errors.As(err, &customerrors.ErrUsernameNotUnique) {
+		if errors.Is(err, customerrors.ErrUsernameNotUnique) {
 			http.Error(w, "Username already exists", http.StatusConflict)
 			return
 		}
-		c.log.Errorf("failed to decode json: %v", err)
+		c.log.Errorf("failed to register user: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
 }
 
+// Authenticate обработчик аутентификации пользователя.
 func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request) {
 	var req api.AuthenticateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-	}
-	if req.Username == "" || req.Password == "" {
-		http.Error(w, "Missing required fields: username, password", http.StatusBadRequest)
+	if err := decodeJSONRequestBody(w, r, &req); err != nil {
 		return
 	}
 
@@ -68,22 +64,25 @@ func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     jwt.CookieKey,
-		Value:    token,
-		Expires:  time.Now().Add(config.GetJWTTokenDuration()), // Установите соответствующий срок действия
-		HttpOnly: true,                                         // Важно для безопасности, предотвращает доступ JavaScript к куки
-		Path:     "/",                                          // Куки будет доступна на всех маршрутах
-		Secure:   true,                                         // Куки должна отправляться только по HTTPS
-		SameSite: http.SameSiteStrictMode,                      // Предотвращает отправку куки при кросс-доменных запросах
+		Name:    jwt.CookieKey,
+		Value:   token,
+		Expires: time.Now().Add(config.GetJWTTokenDuration()),
+		// Важно для безопасности, предотвращает доступ JavaScript к куки
+		HttpOnly: true,
+		// Куки будет доступна на всех маршрутах
+		Path: "/",
+		// Куки должна отправляться только по HTTPS
+		Secure: true,
+		// Предотвращает отправку куки при кросс-доменных запросах
+		SameSite: http.SameSiteStrictMode,
 	})
 }
 
-func (c *UserAuthController) Test(w http.ResponseWriter, r *http.Request) {
-	userID, ok := jwt.GetUserIDFromContext(r.Context())
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		c.log.Errorf("%v", ok)
-		return
+// decodeJSONRequestBody декодирует тело запроса JSON в предоставленную структуру и проверяет наличие обязательных полей.
+func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, dst interface{}, requiredFields ...string) error {
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return err
 	}
-	fmt.Println(userID)
+	return nil
 }

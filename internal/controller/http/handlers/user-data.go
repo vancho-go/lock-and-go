@@ -3,28 +3,28 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/vancho-go/lock-and-go/internal/model"
-	"github.com/vancho-go/lock-and-go/internal/service/jwt"
 	userdata "github.com/vancho-go/lock-and-go/internal/service/user-data"
 	"github.com/vancho-go/lock-and-go/pkg/logger"
 	"net/http"
 )
 
+// UserDataController контроллер для обработки хранимых пользовательских данных.
 type UserDataController struct {
 	dataService *userdata.DataService
 	log         *logger.Logger
-	jwt         jwt.Manager
 }
 
+// NewUserDataController конструктор UserDataController.
 func NewUserDataController(service *userdata.DataService, log *logger.Logger) *UserDataController {
 	return &UserDataController{
 		dataService: service,
 		log:         log}
 }
 
+// SyncDataChanges обработчик синхронизации пользовательских данных.
 func (c *UserDataController) SyncDataChanges(w http.ResponseWriter, r *http.Request) {
 	var datum []model.UserData
-	if err := json.NewDecoder(r.Body).Decode(&datum); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := decodeJSONRequestBody(w, r, &datum); err != nil {
 		return
 	}
 
@@ -37,6 +37,7 @@ func (c *UserDataController) SyncDataChanges(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 }
 
+// GetData обработчик запроса на получение хранимых пользовательских данных.
 func (c *UserDataController) GetData(w http.ResponseWriter, r *http.Request) {
 	datum, err := c.dataService.GetData(r.Context())
 	if err != nil {
