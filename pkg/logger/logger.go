@@ -5,8 +5,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Logger SugaredLogger обертка.
 type Logger = zap.SugaredLogger
 
+// New генерирует логгер.
 func New(logLevel string) (*Logger, error) {
 	config := zap.NewProductionConfig()
 

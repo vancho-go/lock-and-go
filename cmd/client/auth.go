@@ -4,71 +4,98 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	api "github.com/vancho-go/lock-and-go/api/http"
+	"github.com/vancho-go/lock-and-go/internal/model"
 	"io"
 	"net/http"
 )
 
-var AuthToken string
+// HttpClient методы для http клиента
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
 
-func Register(username, password string) {
-	data := api.RegisterUserRequest{
+// AuthClient клиент для аутентификации.
+type AuthClient struct {
+	httpClient HttpClient
+	serverHost string
+}
+
+// NewAuthClient конструктор AuthClient.
+func NewAuthClient(httpClient HttpClient, serverHost string) *AuthClient {
+	return &AuthClient{
+		httpClient: httpClient,
+		serverHost: serverHost,
+	}
+}
+
+// Register метод регистрации пользователя.
+func (ac *AuthClient) Register(username, password string) error {
+	data := model.User{
 		Username: username,
 		Password: password,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		fmt.Println("Error marshalling data:", err)
-		return
+		return fmt.Errorf("error marshalling data: %v", err)
 	}
-
-	resp, err := http.Post((ServerHost + "/register"), "application/json", bytes.NewBuffer(dataBytes))
+	req, err := http.NewRequest("POST", ac.serverHost+"/register", bytes.NewBuffer(dataBytes))
 	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
+		return fmt.Errorf("error creating request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ac.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to register: %s\n", body)
-		return
+		return fmt.Errorf("failed to register: %s", body)
 	}
-
-	fmt.Println("Registration successful.")
+	return nil
 }
 
-func Login(username, password string) {
-	data := api.AuthenticateUserRequest{
+// Login метод авторизации пользователя.
+func (ac *AuthClient) Login(username, password string) (string, error) {
+	data := model.User{
 		Username: username,
 		Password: password,
 	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		fmt.Println("Error marshalling data:", err)
-		return
+		return "", fmt.Errorf("error marshalling data: %v", err)
 	}
 
-	resp, err := http.Post(ServerHost+"/login", "application/json", bytes.NewBuffer(dataBytes))
+	req, err := http.NewRequest("POST", ac.serverHost+"/login", bytes.NewBuffer(dataBytes))
 	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
+		return "", fmt.Errorf("error creating request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ac.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to login: %s\n", body)
-		return
+		return "", fmt.Errorf("failed to login: %s", body)
 	}
 
-	// Предполагаем, что сервер устанавливает cookie с именем AuthToken
+	var authToken string
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == "AuthToken" {
-			AuthToken = cookie.Value
+			authToken = cookie.Value
 			break
 		}
 	}
 
-	fmt.Println("Login successful.")
+	if authToken == "" {
+		return "", fmt.Errorf("login successful, but no auth token received")
+	}
+
+	return authToken, nil
 }

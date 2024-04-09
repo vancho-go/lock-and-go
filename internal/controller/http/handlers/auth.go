@@ -54,7 +54,7 @@ func (c *UserAuthController) Authenticate(w http.ResponseWriter, r *http.Request
 
 	token, err := c.userService.Authenticate(r.Context(), req.Username, req.Password)
 	if err != nil {
-		if errors.As(err, &customerrors.ErrWrongPassword) {
+		if errors.Is(err, customerrors.ErrWrongPassword) {
 			http.Error(w, "Wrong password", http.StatusUnauthorized)
 			return
 		}

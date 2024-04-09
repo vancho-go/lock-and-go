@@ -5,20 +5,24 @@ import (
 	"fmt"
 	"github.com/vancho-go/lock-and-go/internal/config"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 )
 
-var ServerHost string
-
 func main() {
+	var AuthToken string
+
 	loaderType := "flag"
 	client, err := config.NewClient(loaderType)
 	if err != nil {
 		log.Fatalf("error building client configuration: %v", err)
 	}
 
-	ServerHost = *client.ServerAddress
+	httpClient := &http.Client{}
+	authClient := NewAuthClient(httpClient, *client.ServerAddress)
+
+	keyManager := NewKeyManager()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Привет от LockAndGo CLI client. Вбей 'help' чтобы увидеть список доступных команд")
@@ -50,32 +54,50 @@ func main() {
 				fmt.Println("Пример: register <username> <password>")
 				continue
 			}
-			Register(args[1], args[2])
+			err = authClient.Register(args[1], args[2])
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Registration successful.")
+			}
 
 		case "login":
 			if len(args) != 3 {
 				fmt.Println("Пример: login <username> <password>")
 				continue
 			}
-			Login(args[1], args[2])
+			AuthToken, err = authClient.Login(args[1], args[2])
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Login successful.")
+			}
 
 		case "import-key":
 			if len(args) != 3 {
 				fmt.Println("Пример: import-key <key path> <key password>")
 				continue
 			}
-			ImportKey(args[1], args[2])
+			if err = keyManager.ImportKey(args[1], args[2]); err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Encryption key imported successfully.")
+			}
 
 		case "generate-key":
 			if len(args) != 3 {
 				fmt.Println("Пример: generate-key <key path> <key password>")
 				continue
 			}
-			GenerateKey(args[1], args[2])
+			if err = keyManager.GenerateKey(args[1], args[2]); err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Encryption key generated and saved successfully.")
+			}
 
 		case "data":
-			if len(key) != 0 {
-				handleData(scanner)
+			if len(keyManager.Key) != 0 {
+				handleData(scanner, AuthToken, authClient, keyManager)
 			} else {
 				fmt.Println("Для использования импортируйте ключ или создайте новый")
 			}
@@ -87,14 +109,14 @@ func main() {
 	}
 }
 
-func handleData(scanner *bufio.Scanner) {
+func handleData(scanner *bufio.Scanner, authToken string, ac *AuthClient, km *KeyManager) {
 	fmt.Println("Data handling mode. Type 'help' to see available commands.")
 
 	filename := "data.json"
 	dataMap := make(map[string]UserData)
 
 	// Попытка чтения существующих данных из файла
-	tempDataMap, err := readDataFromFileSecure(filename, key)
+	tempDataMap, err := readDataFromFileSecure(filename, km)
 	if err != nil {
 		fmt.Println("Failed to read the file, we start with an empty database.")
 	} else {
@@ -134,16 +156,16 @@ func handleData(scanner *bufio.Scanner) {
 				fmt.Println("Record added")
 			}
 		case "sync":
-			if AuthToken == "" {
+			if authToken == "" {
 				fmt.Println("Для использования авторизуйтесь")
 				break
 			}
-			if err := syncDataWithServer(dataMap, key, filename); err != nil {
+			if err := ac.syncDataWithServer(dataMap, filename, authToken, km); err != nil {
 				fmt.Printf("Ошибка при синхронизации данных: %v\n", err)
 			} else {
 				fmt.Println("Данные успешно синхронизированы с сервером.")
 				// Перечитываем данные после синхронизации, чтобы обновить локальное состояние
-				dataMap, err = readDataFromFileSecure(filename, key)
+				dataMap, err = readDataFromFileSecure(filename, km)
 				if err != nil {
 					fmt.Println("Ошибка при чтении обновленных данных:", err)
 				}
@@ -153,7 +175,7 @@ func handleData(scanner *bufio.Scanner) {
 			for _, userData := range dataMap {
 				userDataSlice = append(userDataSlice, userData)
 			}
-			if err := saveDataToFileSecure(userDataSlice, filename, key); err != nil {
+			if err := saveDataToFileSecure(userDataSlice, filename, km); err != nil {
 				fmt.Println("Ошибка при сохранении данных:", err)
 			} else {
 				fmt.Println("Данные успешно сохранены.")

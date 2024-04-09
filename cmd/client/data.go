@@ -22,34 +22,40 @@ type DataInterface interface {
 	Deserialize([]byte) error
 }
 
-// LoginPasswordData представляет данные логина и пароля
+// LoginPasswordData представляет данные логина и пароля.
 type LoginPasswordData struct {
 	Login    string
 	Password string
 	MetaInfo string
 }
 
+// Serialize сериализатор LoginPasswordData.
 func (lpd *LoginPasswordData) Serialize() ([]byte, error) {
 	return json.Marshal(lpd)
 }
 
+// Deserialize десериализатор LoginPasswordData.
 func (lpd *LoginPasswordData) Deserialize(data []byte) error {
 	return json.Unmarshal(data, lpd)
 }
 
+// TextData текстовый тип хранимых данных.
 type TextData struct {
 	Text     string
 	MetaInfo string
 }
 
+// Serialize сериализатор TextData.
 func (td *TextData) Serialize() ([]byte, error) {
 	return json.Marshal(td)
 }
 
+// Deserialize десериализатор TextData.
 func (td *TextData) Deserialize(data []byte) error {
 	return json.Unmarshal(data, td)
 }
 
+// BankCardData тип данных для банковских карт.
 type BankCardData struct {
 	CardNumber string
 	ExpiryDate string
@@ -57,19 +63,23 @@ type BankCardData struct {
 	MetaInfo   string
 }
 
+// Serialize сериализатор BankCardData.
 func (bcd *BankCardData) Serialize() ([]byte, error) {
 	return json.Marshal(bcd)
 }
 
+// Deserialize десериализатор BankCardData.
 func (bcd *BankCardData) Deserialize(data []byte) error {
 	return json.Unmarshal(data, bcd)
 }
 
+// BinaryData тип для бинарных данных.
 type BinaryData struct {
 	Data     []byte
 	MetaInfo string
 }
 
+// Serialize сериализатор BinaryData.
 func (bd *BinaryData) Serialize() ([]byte, error) {
 	// Преобразование бинарных данных в Base64 строку для сериализации
 	encodedData := base64.StdEncoding.EncodeToString(bd.Data)
@@ -81,6 +91,7 @@ func (bd *BinaryData) Serialize() ([]byte, error) {
 	return json.Marshal(bdCopy)
 }
 
+// Deserialize десериализатор BinaryData.
 func (bd *BinaryData) Deserialize(data []byte) error {
 	var bdCopy BinaryData
 	if err := json.Unmarshal(data, &bdCopy); err != nil {
@@ -99,18 +110,19 @@ func (bd *BinaryData) Deserialize(data []byte) error {
 // UserData содержит данные пользователя, включая динамические данные
 type UserData struct {
 	DataID     string          `json:"data_id"`
-	RawData    json.RawMessage `json:"data"` // Используем RawMessage для гибкости
+	RawData    json.RawMessage `json:"data"`
 	DataType   string          `json:"data_type"`
 	Status     string          `json:"status"`
 	CreatedAt  time.Time       `json:"created_at"`
 	ModifiedAt time.Time       `json:"modified_at"`
 }
 
-func saveDataToFileSecure(data []UserData, filename string, key []byte) error {
+// saveDataToFileSecure сохраняет данные пользователя в локальный файл.
+func saveDataToFileSecure(data []UserData, filename string, km *KeyManager) error {
 	// Клонирование данных для безопасного шифрования
 	dataCopy := make([]UserData, len(data))
 	for i, d := range data {
-		encryptedData, err := encrypt(d.RawData, key)
+		encryptedData, err := km.Encrypt(d.RawData)
 		if err != nil {
 			return err
 		}
@@ -135,7 +147,8 @@ func saveDataToFileSecure(data []UserData, filename string, key []byte) error {
 	return os.WriteFile(filename, jsonData, 0644)
 }
 
-func readDataFromFileSecure(filename string, key []byte) (map[string]UserData, error) {
+// readDataFromFileSecure считывает данные пользователя из локального файла.
+func readDataFromFileSecure(filename string, km *KeyManager) (map[string]UserData, error) {
 	jsonData, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -153,7 +166,7 @@ func readDataFromFileSecure(filename string, key []byte) (map[string]UserData, e
 		if err != nil {
 			return nil, err
 		}
-		decryptedData, err := decrypt(encryptedData, key)
+		decryptedData, err := km.Decrypt(encryptedData)
 		if err != nil {
 			return nil, err
 		}
@@ -168,6 +181,7 @@ func readDataFromFileSecure(filename string, key []byte) (map[string]UserData, e
 	return dataMap, nil
 }
 
+// printData выводит данные пользователя из локального файла.
 func printData(dataMap map[string]UserData) {
 	for id, userData := range dataMap {
 		fmt.Printf("Data ID: %s\n", id)
@@ -191,6 +205,7 @@ func printData(dataMap map[string]UserData) {
 	}
 }
 
+// createDataFromInput создает новые данные разных типов.
 func createDataFromInput() UserData {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Выберите тип данных для добавления:")
@@ -276,6 +291,7 @@ func createDataFromInput() UserData {
 	}
 }
 
+// editDataFromInput позволяет отредактировать локльные пользовательские данные.
 func editDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Введите DataID для редактирования:")
 	reader := bufio.NewReader(os.Stdin)
@@ -357,6 +373,7 @@ func editDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Данные успешно обновлены.")
 }
 
+// deleteDataFromInput удаляет пользовательские данные.
 func deleteDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Введите DataID для удаления:")
 	reader := bufio.NewReader(os.Stdin)
@@ -376,13 +393,14 @@ func deleteDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Запись помечена как удалённая.")
 }
 
-func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string) error {
+// syncDataWithServer синхронизирует локальную версию пользовательских данных с сервером.
+func (ac *AuthClient) syncDataWithServer(dataMap map[string]UserData, filename, authToken string, km *KeyManager) error {
 	// Подготовка данных к отправке
 	var toSync []model.UserData
 	for _, ud := range dataMap {
 		if ud.Status != "synced" {
 			// Шифрование данных
-			encryptedData, err := encrypt(ud.RawData, key)
+			encryptedData, err := km.Encrypt(ud.RawData)
 			if err != nil {
 				return fmt.Errorf("error encrypting data: %v", err)
 			}
@@ -399,10 +417,6 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 		}
 	}
 
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
-
 	// Отправка собранных данных на сервер одним POST-запросом
 	if len(toSync) > 0 {
 		dataBytes, err := json.Marshal(toSync)
@@ -410,16 +424,16 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 			return fmt.Errorf("error marshalling data: %v", err)
 		}
 
-		req, err := http.NewRequest("POST", ServerHost+"/data/sync", bytes.NewBuffer(dataBytes))
+		req, err := http.NewRequest("POST", ac.serverHost+"/data/sync", bytes.NewBuffer(dataBytes))
 		if err != nil {
 			return fmt.Errorf("error creating request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "AuthToken="+AuthToken) // Добавляем куки
+		req.Header.Set("Cookie", "AuthToken="+authToken) // Добавляем куки
 
-		response, err := client.Do(req)
+		response, err := ac.httpClient.Do(req)
 		if err != nil {
-			return fmt.Errorf("error sending data to server: %v", err)
+			return fmt.Errorf("error sending request: %v", err)
 		}
 		defer response.Body.Close()
 
@@ -429,15 +443,15 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 	}
 
 	// Получение актуальных данных с сервера
-	req, err := http.NewRequest("GET", ServerHost+"/data", nil)
+	req, err := http.NewRequest("GET", ac.serverHost+"/data", nil)
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
-	req.Header.Set("Cookie", "AuthToken="+AuthToken) // Добавляем куки
+	req.Header.Set("Cookie", "AuthToken="+authToken) // Добавляем куки
 
-	resp, err := client.Do(req)
+	resp, err := ac.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error getting data from server: %v", err)
+		return fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -466,7 +480,7 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 			return fmt.Errorf("error decoding data from base64: %v", errDec)
 		}
 
-		decryptedData, errDecr := decrypt(decodedData, key)
+		decryptedData, errDecr := km.Decrypt(decodedData)
 		if errDecr != nil {
 			return fmt.Errorf("error decrypting data: %v", errDecr)
 		}
@@ -490,5 +504,5 @@ func syncDataWithServer(dataMap map[string]UserData, key []byte, filename string
 		newDataList = append(newDataList, v)
 	}
 
-	return saveDataToFileSecure(newDataList, filename, key)
+	return saveDataToFileSecure(newDataList, filename, km)
 }

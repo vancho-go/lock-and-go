@@ -10,9 +10,45 @@ import (
 	"os"
 )
 
-var key []byte
+// KeyManager менеджер ключей шифрования.
+type KeyManager struct {
+	Key []byte
+}
 
-// Функция для генерации ключа шифрования данных и его шифрования с использованием ключа, полученного из пароля.
+// NewKeyManager конструктор KeyManager.
+func NewKeyManager() *KeyManager {
+	return &KeyManager{}
+}
+
+// ImportKey импортирует существующий ключ пользователя.
+func (km *KeyManager) ImportKey(keyPath, keyPass string) error {
+	decryptedKey, err := readAndDecryptKey(keyPass, keyPath)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt your encryption key: %w", err)
+	}
+	km.Key = decryptedKey
+	return nil
+}
+
+// GenerateKey генерирует новый ключ шифрования для пользователя.
+func (km *KeyManager) GenerateKey(keyPath, keyPass string) error {
+	if err := generateAndSaveKey(keyPass, keyPath); err != nil {
+		return fmt.Errorf("failed to generate and save encryption key: %w", err)
+	}
+	return nil
+}
+
+// Encrypt шифрует данные пользователя.
+func (km *KeyManager) Encrypt(data []byte) ([]byte, error) {
+	return encrypt(data, km.Key)
+}
+
+// Decrypt расшифровывает данные пользователя.
+func (km *KeyManager) Decrypt(encrypted []byte) ([]byte, error) {
+	return decrypt(encrypted, km.Key)
+}
+
+// generateAndSaveKey функция для генерации ключа шифрования данных и его шифрования с использованием ключа, полученного из пароля.
 func generateAndSaveKey(password, path string) error {
 	// Генерация ключа шифрования данных
 	dataKey := make([]byte, 32) // AES-256 ключ
@@ -47,7 +83,7 @@ func generateAndSaveKey(password, path string) error {
 	return os.WriteFile(path, keyFileContent, 0600)
 }
 
-// Функция для считывания и расшифровки ключа шифрования данных из файла с использованием пароля.
+// readAndDecryptKey функция для считывания и расшифровки ключа шифрования данных из файла с использованием пароля.
 func readAndDecryptKey(password, keyPath string) ([]byte, error) {
 	keyFileContent, err := os.ReadFile(keyPath)
 	if err != nil {
@@ -76,7 +112,7 @@ func readAndDecryptKey(password, keyPath string) ([]byte, error) {
 	return dataKey, nil
 }
 
-// Функция для шифрования данных.
+// encrypt функция для шифрования данных.
 func encrypt(data []byte, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -97,7 +133,7 @@ func encrypt(data []byte, key []byte) ([]byte, error) {
 	return encrypted, nil
 }
 
-// Функция для расшифровки данных.
+// decrypt функция для расшифровки данных.
 func decrypt(encrypted []byte, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -116,22 +152,4 @@ func decrypt(encrypted []byte, key []byte) ([]byte, error) {
 	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
 
 	return aesGCM.Open(nil, nonce, ciphertext, nil)
-}
-
-func ImportKey(keyPath, keyPass string) {
-	decryptedKey, err := readAndDecryptKey(keyPass, keyPath)
-	if err != nil {
-		fmt.Println("Failed to decrypt your encryption key:", err)
-		return
-	}
-	key = decryptedKey
-	fmt.Println("Encryption key imported successfully.")
-}
-
-func GenerateKey(keyPath, keyPass string) {
-	if err := generateAndSaveKey(keyPass, keyPath); err != nil {
-		fmt.Println("Failed to generate and save encryption key:", err)
-		return
-	}
-	fmt.Println("Encryption key generated and saved successfully.")
 }
