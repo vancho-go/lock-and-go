@@ -3,6 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/vancho-go/lock-and-go/cmd/client/crypto"
+	"github.com/vancho-go/lock-and-go/cmd/client/data"
+	"github.com/vancho-go/lock-and-go/cmd/client/handlers"
 	"github.com/vancho-go/lock-and-go/internal/config"
 	"log"
 	"net/http"
@@ -10,7 +13,15 @@ import (
 	"strings"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	printBuildInfo()
+
 	var AuthToken string
 
 	loaderType := "flag"
@@ -20,9 +31,9 @@ func main() {
 	}
 
 	httpClient := &http.Client{}
-	authClient := NewAuthClient(httpClient, *client.ServerAddress)
+	authClient := handlers.NewAuthClient(httpClient, *client.ServerAddress)
 
-	keyManager := NewKeyManager()
+	keyManager := crypto.NewKeyManager()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Привет от LockAndGo CLI client. Вбей 'help' чтобы увидеть список доступных команд")
@@ -109,14 +120,14 @@ func main() {
 	}
 }
 
-func handleData(scanner *bufio.Scanner, authToken string, ac *AuthClient, km *KeyManager) {
+func handleData(scanner *bufio.Scanner, authToken string, ac *handlers.AuthClient, km *crypto.KeyManager) {
 	fmt.Println("Data handling mode. Type 'help' to see available commands.")
 
 	filename := "data.json"
-	dataMap := make(map[string]UserData)
+	dataMap := make(map[string]data.UserData)
 
 	// Попытка чтения существующих данных из файла
-	tempDataMap, err := readDataFromFileSecure(filename, km)
+	tempDataMap, err := data.ReadDataFromFileSecure(filename, km)
 	if err != nil {
 		fmt.Println("Failed to read the file, we start with an empty database.")
 	} else {
@@ -144,13 +155,13 @@ func handleData(scanner *bufio.Scanner, authToken string, ac *AuthClient, km *Ke
 			fmt.Println("  save - Сохранить внесенные изменения")
 			fmt.Println("  back - Вернуться в главное меню")
 		case "show":
-			printData(dataMap)
+			data.PrintData(dataMap)
 		case "edit":
-			editDataFromInput(dataMap)
+			data.EditDataFromInput(dataMap)
 		case "delete":
-			deleteDataFromInput(dataMap)
+			data.DeleteDataFromInput(dataMap)
 		case "add":
-			userData := createDataFromInput()
+			userData := data.CreateDataFromInput()
 			if userData.DataID != "" {
 				dataMap[userData.DataID] = userData
 				fmt.Println("Record added")
@@ -160,22 +171,22 @@ func handleData(scanner *bufio.Scanner, authToken string, ac *AuthClient, km *Ke
 				fmt.Println("Для использования авторизуйтесь")
 				break
 			}
-			if err := ac.syncDataWithServer(dataMap, filename, authToken, km); err != nil {
+			if err := ac.SyncDataWithServer(dataMap, filename, authToken, km); err != nil {
 				fmt.Printf("Ошибка при синхронизации данных: %v\n", err)
 			} else {
 				fmt.Println("Данные успешно синхронизированы с сервером.")
 				// Перечитываем данные после синхронизации, чтобы обновить локальное состояние
-				dataMap, err = readDataFromFileSecure(filename, km)
+				dataMap, err = data.ReadDataFromFileSecure(filename, km)
 				if err != nil {
 					fmt.Println("Ошибка при чтении обновленных данных:", err)
 				}
 			}
 		case "save":
-			var userDataSlice []UserData
+			var userDataSlice []data.UserData
 			for _, userData := range dataMap {
 				userDataSlice = append(userDataSlice, userData)
 			}
-			if err := saveDataToFileSecure(userDataSlice, filename, km); err != nil {
+			if err := data.SaveDataToFileSecure(userDataSlice, filename, km); err != nil {
 				fmt.Println("Ошибка при сохранении данных:", err)
 			} else {
 				fmt.Println("Данные успешно сохранены.")
@@ -187,4 +198,10 @@ func handleData(scanner *bufio.Scanner, authToken string, ac *AuthClient, km *Ke
 			fmt.Println("Неизвестная команда:", args[0])
 		}
 	}
+}
+
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 }

@@ -1,15 +1,12 @@
-package main
+package data
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/vancho-go/lock-and-go/internal/model"
-	"io"
-	"net/http"
+	"github.com/vancho-go/lock-and-go/cmd/client/crypto"
 	"os"
 	"reflect"
 	"strings"
@@ -117,8 +114,8 @@ type UserData struct {
 	ModifiedAt time.Time       `json:"modified_at"`
 }
 
-// saveDataToFileSecure сохраняет данные пользователя в локальный файл.
-func saveDataToFileSecure(data []UserData, filename string, km *KeyManager) error {
+// SaveDataToFileSecure сохраняет данные пользователя в локальный файл.
+func SaveDataToFileSecure(data []UserData, filename string, km *crypto.KeyManager) error {
 	// Клонирование данных для безопасного шифрования
 	dataCopy := make([]UserData, len(data))
 	for i, d := range data {
@@ -147,8 +144,8 @@ func saveDataToFileSecure(data []UserData, filename string, km *KeyManager) erro
 	return os.WriteFile(filename, jsonData, 0644)
 }
 
-// readDataFromFileSecure считывает данные пользователя из локального файла.
-func readDataFromFileSecure(filename string, km *KeyManager) (map[string]UserData, error) {
+// ReadDataFromFileSecure считывает данные пользователя из локального файла.
+func ReadDataFromFileSecure(filename string, km *crypto.KeyManager) (map[string]UserData, error) {
 	jsonData, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -181,8 +178,8 @@ func readDataFromFileSecure(filename string, km *KeyManager) (map[string]UserDat
 	return dataMap, nil
 }
 
-// printData выводит данные пользователя из локального файла.
-func printData(dataMap map[string]UserData) {
+// PrintData выводит данные пользователя из локального файла.
+func PrintData(dataMap map[string]UserData) {
 	for id, userData := range dataMap {
 		fmt.Printf("Data ID: %s\n", id)
 		fmt.Printf("Data Type: %s\n", userData.DataType)
@@ -205,8 +202,8 @@ func printData(dataMap map[string]UserData) {
 	}
 }
 
-// createDataFromInput создает новые данные разных типов.
-func createDataFromInput() UserData {
+// CreateDataFromInput создает новые данные разных типов.
+func CreateDataFromInput() UserData {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Выберите тип данных для добавления:")
 	fmt.Println("1: LoginPasswordData")
@@ -291,8 +288,8 @@ func createDataFromInput() UserData {
 	}
 }
 
-// editDataFromInput позволяет отредактировать локльные пользовательские данные.
-func editDataFromInput(dataMap map[string]UserData) {
+// EditDataFromInput позволяет отредактировать локльные пользовательские данные.
+func EditDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Введите DataID для редактирования:")
 	reader := bufio.NewReader(os.Stdin)
 	dataID, _ := reader.ReadString('\n')
@@ -373,8 +370,8 @@ func editDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Данные успешно обновлены.")
 }
 
-// deleteDataFromInput удаляет пользовательские данные.
-func deleteDataFromInput(dataMap map[string]UserData) {
+// DeleteDataFromInput удаляет пользовательские данные.
+func DeleteDataFromInput(dataMap map[string]UserData) {
 	fmt.Println("Введите DataID для удаления:")
 	reader := bufio.NewReader(os.Stdin)
 	dataID, _ := reader.ReadString('\n')
@@ -391,118 +388,4 @@ func deleteDataFromInput(dataMap map[string]UserData) {
 
 	dataMap[dataID] = userData
 	fmt.Println("Запись помечена как удалённая.")
-}
-
-// syncDataWithServer синхронизирует локальную версию пользовательских данных с сервером.
-func (ac *AuthClient) syncDataWithServer(dataMap map[string]UserData, filename, authToken string, km *KeyManager) error {
-	// Подготовка данных к отправке
-	var toSync []model.UserData
-	for _, ud := range dataMap {
-		if ud.Status != "synced" {
-			// Шифрование данных
-			encryptedData, err := km.Encrypt(ud.RawData)
-			if err != nil {
-				return fmt.Errorf("error encrypting data: %v", err)
-			}
-			base64Data := base64.StdEncoding.EncodeToString(encryptedData)
-
-			toSync = append(toSync, model.UserData{
-				DataID:     ud.DataID,
-				Data:       base64Data,
-				DataType:   ud.DataType,
-				Status:     ud.Status,
-				CreatedAt:  ud.CreatedAt,
-				ModifiedAt: ud.ModifiedAt,
-			})
-		}
-	}
-
-	// Отправка собранных данных на сервер одним POST-запросом
-	if len(toSync) > 0 {
-		dataBytes, err := json.Marshal(toSync)
-		if err != nil {
-			return fmt.Errorf("error marshalling data: %v", err)
-		}
-
-		req, err := http.NewRequest("POST", ac.serverHost+"/data/sync", bytes.NewBuffer(dataBytes))
-		if err != nil {
-			return fmt.Errorf("error creating request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "AuthToken="+authToken) // Добавляем куки
-
-		response, err := ac.httpClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("error sending request: %v", err)
-		}
-		defer response.Body.Close()
-
-		if response.StatusCode != http.StatusOK {
-			return fmt.Errorf("server returned non-OK status: %d", response.StatusCode)
-		}
-	}
-
-	// Получение актуальных данных с сервера
-	req, err := http.NewRequest("GET", ac.serverHost+"/data", nil)
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-	req.Header.Set("Cookie", "AuthToken="+authToken) // Добавляем куки
-
-	resp, err := ac.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("error reading response body: %v", err)
-	}
-
-	var serverData []model.UserData
-	if err := json.Unmarshal(body, &serverData); err != nil {
-		return fmt.Errorf("error unmarshalling server data: %v", err)
-	}
-
-	// Обновление локальных данных и сохранение в файл
-	newDataMap := make(map[string]UserData)
-	for _, sd := range serverData {
-		if sd.Data == "" {
-			// Обработка случая, когда строка данных пуста
-			fmt.Println("Предупреждение: попытка декодировать пустую строку.")
-			continue // Пропускаем текущую итерацию цикла
-		}
-
-		decodedData, errDec := base64.StdEncoding.DecodeString(sd.Data)
-		if errDec != nil {
-			// Обработка ошибки некорректного формата Base64
-			return fmt.Errorf("error decoding data from base64: %v", errDec)
-		}
-
-		decryptedData, errDecr := km.Decrypt(decodedData)
-		if errDecr != nil {
-			return fmt.Errorf("error decrypting data: %v", errDecr)
-		}
-
-		// Обновление статуса на "synced"
-		sd.Status = "synced"
-
-		newDataMap[sd.DataID] = UserData{
-			DataID:     sd.DataID,
-			RawData:    decryptedData,
-			DataType:   sd.DataType,
-			Status:     sd.Status,
-			CreatedAt:  sd.CreatedAt,
-			ModifiedAt: sd.ModifiedAt,
-		}
-	}
-
-	// Сохранение обновленных данных в файл с шифрованием
-	newDataList := make([]UserData, 0, len(newDataMap))
-	for _, v := range newDataMap {
-		newDataList = append(newDataList, v)
-	}
-
-	return saveDataToFileSecure(newDataList, filename, km)
 }
