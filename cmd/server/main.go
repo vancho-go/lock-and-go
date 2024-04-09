@@ -15,6 +15,8 @@ import (
 	"net/http"
 )
 
+const migrationsPath = "internal/repository/storage/psql/migrations"
+
 func main() {
 	ctx := context.TODO()
 
@@ -35,10 +37,7 @@ func main() {
 		log.Fatalf("storage could not be closed: %v", err)
 	}
 
-	dbURL := "host=localhost port=5432 user=vancho password=vancho_pswd dbname=vancho_db sslmode=disable"
-	migrationsPath := "internal/repository/storage/psql/migrations"
-
-	storage, err := psql.New(ctx, dbURL, migrationsPath, logZap)
+	storage, err := psql.New(ctx, server.DatabaseURI, migrationsPath, logZap)
 	if err != nil {
 		log.Fatalf("error initialising storage: %v", err)
 	}

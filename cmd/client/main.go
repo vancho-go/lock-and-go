@@ -27,7 +27,7 @@ func main() {
 	loaderType := "flag"
 	client, err := config.NewClient(loaderType)
 	if err != nil {
-		log.Fatalf("error building client configuration: %v", err)
+		log.Fatalf("error building client_macOS configuration: %v", err)
 	}
 
 	httpClient := &http.Client{}
@@ -36,7 +36,7 @@ func main() {
 	keyManager := crypto.NewKeyManager()
 
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("Привет от LockAndGo CLI client. Вбей 'help' чтобы увидеть список доступных команд")
+	fmt.Println("Привет от LockAndGo CLI client_macOS. Вбей 'help' чтобы увидеть список доступных команд")
 
 	for {
 		fmt.Print("> ")
