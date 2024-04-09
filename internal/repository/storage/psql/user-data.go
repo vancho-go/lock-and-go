@@ -7,29 +7,35 @@ import (
 	"github.com/vancho-go/lock-and-go/pkg/logger"
 )
 
+// UserDataUpserter методы для апсерта пользовательских данных.
 type UserDataUpserter interface {
 	Upsert(ctx context.Context, data []model.UserData) error
 }
 
+// UserDataReader методы для чтения пользовательских данных.
 type UserDataReader interface {
 	Read(ctx context.Context, userID string) ([]model.UserData, error)
 }
 
+// UserDataDeleter методы для удаления пользовательских данных.
 type UserDataDeleter interface {
 	Delete(ctx context.Context, data []model.UserData) error
 }
 
+// DefaultUserDataRepository тип, реализующий UserDataUpserter, UserDataReader и UserDataDeleter
 type DefaultUserDataRepository struct {
 	conn *sqlx.DB
 	log  *logger.Logger
 }
 
+// NewDefaultUserDataRepository конструктор DefaultUserDataRepository.
 func NewDefaultUserDataRepository(storage *Storage) *DefaultUserDataRepository {
 	return &DefaultUserDataRepository{
 		conn: storage.conn,
 		log:  storage.log}
 }
 
+// Upsert добавляет/обновляет данные пользователей из БД.
 func (r *DefaultUserDataRepository) Upsert(ctx context.Context, datum []model.UserData) error {
 	tx, err := r.conn.BeginTxx(ctx, nil)
 	if err != nil {
@@ -62,6 +68,7 @@ func (r *DefaultUserDataRepository) Upsert(ctx context.Context, datum []model.Us
 	return nil
 }
 
+// Delete удаляет данные пользователей из БД.
 func (r *DefaultUserDataRepository) Delete(ctx context.Context, datum []model.UserData) error {
 	tx, err := r.conn.BeginTxx(ctx, nil)
 	if err != nil {
@@ -91,6 +98,7 @@ func (r *DefaultUserDataRepository) Delete(ctx context.Context, datum []model.Us
 	return nil
 }
 
+// Read считывает данные пользователей из БД.
 func (r *DefaultUserDataRepository) Read(ctx context.Context, userID string) ([]model.UserData, error) {
 	query := `
     SELECT data_id, user_id, data, data_type, created_at, modified_at
@@ -98,10 +106,8 @@ func (r *DefaultUserDataRepository) Read(ctx context.Context, userID string) ([]
     WHERE user_id = $1;
     `
 
-	// Создание слайса для хранения результатов
 	var userDatum []model.UserData
 
-	// Выполнение запроса
 	err := r.conn.SelectContext(ctx, &userDatum, query, userID)
 	if err != nil {
 		r.log.Errorf("failed to read user data for user_id %s: %v", userID, err)

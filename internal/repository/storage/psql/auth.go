@@ -12,22 +12,26 @@ import (
 	"github.com/vancho-go/lock-and-go/pkg/logger"
 )
 
+// UserRepository методы для репозитория пользователей.
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *model.UserHashed) error
 	GetUserByUsername(ctx context.Context, username string) (*model.UserHashed, error)
 }
 
+// DefaultUserRepository тип, который реализует UserRepository.
 type DefaultUserRepository struct {
 	conn *sqlx.DB
 	log  *logger.Logger
 }
 
+// NewDefaultUserRepository конструктор DefaultUserRepository.
 func NewDefaultUserRepository(storage *Storage) *DefaultUserRepository {
 	return &DefaultUserRepository{
 		conn: storage.conn,
 		log:  storage.log}
 }
 
+// CreateUser метод создания нового пользователя.
 func (s *DefaultUserRepository) CreateUser(ctx context.Context, user *model.UserHashed) error {
 	query := "INSERT INTO users (username, password_hash) VALUES ($1, $2)"
 
@@ -47,6 +51,7 @@ func (s *DefaultUserRepository) CreateUser(ctx context.Context, user *model.User
 	return nil
 }
 
+// GetUserByUsername возвращает из БД пользователя по его Username.
 func (s *DefaultUserRepository) GetUserByUsername(ctx context.Context, username string) (*model.UserHashed, error) {
 	var user model.UserHashed
 	query := "SELECT user_id, username, password_hash FROM users WHERE username = $1"
