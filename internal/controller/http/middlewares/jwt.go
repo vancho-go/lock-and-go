@@ -6,6 +6,7 @@ import (
 	"net/http"
 )
 
+// JWTMiddleware проверяет авторизован ли пользователь.
 func (m *Middlewares) JWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		token, err := jwt.GetTokenFromCookie(req)

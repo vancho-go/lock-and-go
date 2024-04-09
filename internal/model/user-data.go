@@ -2,6 +2,7 @@ package model
 
 import "time"
 
+// UserData модель пользовательских данных.
 type UserData struct {
 	DataID     string    `db:"data_id" json:"data_id"`
 	UserID     string    `db:"user_id" json:"user_id"`
